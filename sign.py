@@ -3,6 +3,8 @@ import numpy as np
 import cv2
 
 
+
+
 def cutVideos2Pictures(video_path='Training.avi', saveDir='pictures/myself/'):
     if not os.path.exists(saveDir):
         os.makedirs(saveDir)
@@ -15,15 +17,15 @@ def cutVideos2Pictures(video_path='Training.avi', saveDir='pictures/myself/'):
     while cap:
         cap, frame = vc.read()
         hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
-        blue_lower = np.array([100, 50, 50])
+        blue_lower = np.array([100, 43, 43])
         blue_upper = np.array([124, 255, 255])
         # mask
         mask = cv2.inRange(hsv, blue_lower, blue_upper)
-        blurred = cv2.blur(mask, (9, 9))
+        blurred=cv2.GaussianBlur(mask, (5, 5), 0)
         cv2.imshow('blurred', blurred)
-
         # binarization
         ret, binary = cv2.threshold(blurred, 127, 255, cv2.THRESH_BINARY)
+        #binary = cv2.Canny(blurred, 50, 150)
         cv2.imshow('blurred binary', binary)
 
         # closed
@@ -38,27 +40,28 @@ def cutVideos2Pictures(video_path='Training.avi', saveDir='pictures/myself/'):
         print('the number of contours：', len(contours))
         i = 0
         res = frame.copy()
+        contours = sorted(contours, key=cv2.contourArea)
         for con in contours:
-
+            # 轮廓转换为矩形
             rect = cv2.minAreaRect(con)
-            # box
-            box = cv2.boxPoints(rect)
-            box = np.int0(box)
-            # the segmation area on original image
-            cv2.drawContours(res, [box], -1, (0, 0, 255), 2)
+            # 矩形转换为box
+            box = np.int0(cv2.boxPoints(rect))
+            x, y, w, h = cv2.boundingRect(con)
+            # 在原图画出目标区域
             print([box])
-            # the dimension of matrix
-            h1 = min(box.max(axis=0))
-            h2 = min(box.min(axis=0))
-            l1 = max(box.max(axis=1))
-            l2 = min(box.max(axis=1))
+            # 计算矩形的行列
+            h1 = max([box][0][0][1], [box][0][1][1], [box][0][2][1], [box][0][3][1])
+            h2 = min([box][0][0][1], [box][0][1][1], [box][0][2][1], [box][0][3][1])
+            l1 = max([box][0][0][0], [box][0][1][0], [box][0][2][0], [box][0][3][0])
+            l2 = min([box][0][0][0], [box][0][1][0], [box][0][2][0], [box][0][3][0])
             print('h1', h1)
             print('h2', h2)
             print('l1', l1)
             print('l2', l2)
-            # make sure if the area is accurate
-            if h1 - h2 > 0 and l1 - l2 > 0:
+                # make sure if the area is accurate
+            if h1-h2 > 0 and l1-l2 > 0 and cv2.contourArea(con) > 100 and (0.9 < w/h < 1.1):
                 # segmentation
+                cv2.drawContours(res, [box], -1, (0, 0, 255), 2)
                 temp = frame[h2:h1, l2:l1]
                 i = i + 1
                 # show the image sign
